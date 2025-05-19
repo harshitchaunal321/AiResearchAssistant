@@ -68,6 +68,30 @@ class TogetherService {
             throw error;
         }
     }
+    async analyzeWithPrompt(prompt) {
+        try {
+            const response = await this.client.post('/chat/completions', {
+                model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+                messages: [
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.7,
+                max_tokens: 1500
+            });
+
+            const content = response.data.choices[0].message.content;
+
+            try {
+                return JSON.parse(content);
+            } catch (e) {
+                console.error('Error parsing JSON response:', e);
+                return this.parseTextResponse(content);
+            }
+        } catch (error) {
+            console.error('TogetherAI API error:', error);
+            throw error;
+        }
+    }
 
     parseTextResponse(text) {
         // Fallback parsing if JSON response fails

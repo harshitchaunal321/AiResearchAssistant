@@ -20,9 +20,40 @@ const PDFDocument = require('pdfkit');
 // const __filename = fileURLToPath(import.meta.url);
 // const __dirname = path.dirname(__filename);
 
+const ERROR_MESSAGES = {
+    DEFAULT: "An unexpected error occurred. Please try again later.",
+    INVALID_INPUT: "Please provide valid input for this operation.",
+    PDF_EXTRACTION: "We couldn't extract text from the PDF. Please ensure it's a valid research paper.",
+    SUMMARIZATION: "We couldn't summarize this content. Please try with different content.",
+    CITATION: "We couldn't generate a citation for this paper. Please check the details and try again.",
+    TOPIC_REFINEMENT: "We couldn't refine your research topic. Please try with a different description.",
+    PLAGIARISM: "We couldn't check for plagiarism at this time. Please try again later.",
+    DRAFT_GENERATION: "We couldn't generate your research draft. Please check your inputs and try again.",
+    EXPORT: "We couldn't generate the export file. Please try again or contact support.",
+    API_LIMIT: "We're experiencing high demand. Please try again in a few minutes.",
+    NETWORK: "Network error occurred. Please check your connection and try again."
+};
+
 const filePath = path.join(__dirname, '../downloads', `${Date.now()}.pdf`);
 
 
+// Helper function to format errors
+function formatError(error, customMessage = null) {
+    console.error('Server Error:', error); // Log detailed error for debugging
+
+    const statusCode = error.statusCode || 500;
+    const message = customMessage ||
+        error.userMessage ||
+        ERROR_MESSAGES[error.type] ||
+        ERROR_MESSAGES.DEFAULT;
+
+    return {
+        statusCode,
+        error: 'API Error',
+        message,
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    };
+}
 
 async function downloadPDFViaPuppeteer(url, filePath) {
     const browser = await puppeteer.launch({ headless: 'new' });
@@ -57,7 +88,8 @@ router.post('/literature/search', async (req, res) => {
         if (!topic || typeof topic !== 'string') {
             return res.status(400).json({
                 error: 'Invalid request',
-                message: 'Topic parameter is required and must be a string'
+                message: 'Topic parameter is required and must be a string',
+                userMessage: 'Please enter a valid research topic to search'
             });
         }
 
@@ -78,11 +110,13 @@ router.post('/literature/search', async (req, res) => {
         });
     } catch (error) {
         console.error('Error in literature search:', error);
-        res.status(500).json({
-            error: 'Internal server error',
-            message: error.message,
-            details: error.stack // Only for development
-        });
+        const formattedError = formatError(error, 'We encountered a problem searching for literature. Please try a different search term.');
+        res.status(formattedError.statusCode).json(formattedError);
+        // res.status(500).json({
+        //     error: 'Internal server error',
+        //     message: error.message,
+        //     details: error.stack // Only for development
+        // });
     }
 });
 
@@ -91,14 +125,30 @@ router.post('/summarize-pdf', async (req, res) => {
     console.log('Received request to /summarize-pdf');
     console.log("filepath", req.file.path)
     try {
+        if (!req.file) {
+            throw {
+                statusCode: 400,
+                type: 'INVALID_INPUT',
+                message: 'No file uploaded',
+                userMessage: 'Please upload a PDF file to summarize'
+            };
+        }
         const filePath = req.file.path;
         const text = await extractTextFromPDF(filePath);
         const summary = await summarizeSections(text);
         fs.unlinkSync(filePath);
         res.json(summary);
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Failed to summarize PDF' });
+        // console.error(err);
+        // res.status(500).json({ error: 'Failed to summarize PDF' });
+        const formattedError = formatError(error, ERROR_MESSAGES.PDF_EXTRACTION);
+
+        // Clean up temp file if it exists
+        if (req.file?.path && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+
+        res.status(formattedError.statusCode).json(formattedError);
     }
 });
 
@@ -111,7 +161,12 @@ router.post('/summarize-url', async (req, res) => {
         const { url } = req.body;
 
         if (!url) {
-            return res.status(400).json({ error: 'URL is required' });
+            throw {
+                statusCode: 400,
+                type: 'INVALID_INPUT',
+                message: 'URL is required',
+                userMessage: 'Please provide a valid URL to summarize'
+            };
         }
 
         // Direct PDF handling
@@ -156,8 +211,8 @@ router.post('/summarize-url', async (req, res) => {
         const summary = await summarizeSections(text);
         res.json(summary);
     } catch (error) {
-        console.error('Error summarizing URL:', error);
-        res.status(500).json({ error: error.message });
+        const formattedError = formatError(error, ERROR_MESSAGES.SUMMARIZATION);
+        res.status(formattedError.statusCode).json(formattedError);
     }
 });
 
@@ -225,11 +280,23 @@ async function summarizeSections(text) {
   ${partialSummaries.join("\n\n")}
   `;
 
-    const finalResult = await model.generateContent(finalPrompt);
-    const finalResponse = await finalResult.response;
-    const finalContent = finalResponse.text();
+    console.log('Final Prompt:', finalPrompt);
 
-    return finalContent;
+    const finalResult = await model.generateContent(finalPrompt);
+    console.log('finalResult:', finalResult);
+
+    const finalResponse = await finalResult.response;
+    console.log('finalResponse:', finalResponse);
+
+    const finalContent = finalResponse.text();
+    console.log('finalContent:', finalContent);
+
+    const cleanedContent = finalContent.replace(/^```html\s*/, '').replace(/```$/, '');
+
+    console.log('cleanedContent:', cleanedContent);
+
+
+    return cleanedContent;
 }
 
 // Citation Generator
@@ -248,8 +315,24 @@ router.post('/citations/generate', async (req, res) => {
 router.post('/topics/refine', async (req, res) => {
     try {
         const { researchProblem } = req.body;
-        const refinement = await togetherService.analyzeTopic(researchProblem);
-        res.json(refinement);
+
+        // Enhanced prompt to get more detailed results
+        const prompt = `You are an expert research advisor. Analyze this research topic in depth:
+1. 10 potential research gaps (clearly identified gaps in current research)
+2. 15 possible hypotheses (testable statements that could address the gaps)
+3. 8 suggested narrowed topics (specific, researchable topics)
+
+Topic: ${researchProblem}
+
+Respond in JSON format like:
+{
+    "researchGaps": [],
+    "hypotheses": [],
+    "narrowedTopics": []
+}`;
+
+        const response = await togetherService.analyzeWithPrompt(prompt);
+        res.json(response);
     } catch (error) {
         console.error('Error refining topic:', error);
         res.status(500).json({ error: error.message });
@@ -369,10 +452,29 @@ router.post('/drafts/generate', async (req, res) => {
             tone
         });
 
+        // Generate references if citations exist
         if (citations.length > 0) {
-            draft.references = citations.map(citation =>
-                formatCitation(citation, citationStyle)
-            ).join('\n\n');
+            draft.references = await generateReferences({
+                citations,
+                style: citationStyle,
+                tone
+            });
+        }
+        else {
+            // Use a default citation if none are provided
+            const defaultCitation = [{
+                title: 'Foundations of Research',
+                author: 'Smith, John',
+                year: '2020',
+                journal: 'Journal of Research Methodologies',
+                publisher: 'Academic Press',
+            }];
+
+            draft.references = await generateReferences({
+                citations: defaultCitation,
+                style: citationStyle,
+                tone
+            });
         }
 
         res.json(draft);
@@ -384,6 +486,29 @@ router.post('/drafts/generate', async (req, res) => {
         });
     }
 });
+
+async function generateReferences(params) {
+    console.log('Generating references with params:', params);
+    const { citations, style = 'apa', tone = 'academic' } = params;
+
+    const prompt = `Generate a properly formatted References section in ${style} citation style. 
+Include all these citations, formatted correctly:
+
+${JSON.stringify(citations)}
+
+Return only the references list, with each entry on a new line. 
+Use ${tone} academic style and ensure proper formatting for ${style} style.`;
+
+    try {
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        return response.text();
+    } catch (error) {
+        console.error('Error generating references:', error);
+        return 'References could not be generated automatically. Please add them manually.';
+    }
+}
 
 router.post('/generate-references', async (req, res) => {
     try {
@@ -400,6 +525,31 @@ router.post('/generate-references', async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
+
+// async function analyzeWithPrompt(prompt) {
+//     try {
+//         const response = await this.client.post('/chat/completions', {
+//             model: 'mistralai/Mixtral-8x7B-Instruct-v0.1',
+//             messages: [
+//                 { role: 'user', content: prompt }
+//             ],
+//             temperature: 0.7,
+//             max_tokens: 1500
+//         });
+
+//         const content = response.data.choices[0].message.content;
+
+//         try {
+//             return JSON.parse(content);
+//         } catch (e) {
+//             console.error('Error parsing JSON response:', e);
+//             return this.parseTextResponse(content);
+//         }
+//     } catch (error) {
+//         console.error('TogetherAI API error:', error);
+//         throw error;
+//     }
+// }
 
 function formatCitation(citation, style) {
     // Implement your citation formatting logic here
@@ -594,7 +744,9 @@ router.post('/export/docx', async (req, res) => {
                     ...sections.flatMap(section => [
                         new Paragraph({
                             text: section.title,
-                            heading: section.title === 'Abstract' ? HeadingLevel.HEADING_1 : HeadingLevel.HEADING_2,
+                            heading: section.title === 'Abstract' ? HeadingLevel.HEADING_1 :
+                                section.title === 'References' ? HeadingLevel.HEADING_2 :
+                                    HeadingLevel.HEADING_2,
                             spacing: { before: 400, after: 200 }
                         }),
                         ...section.content
@@ -606,13 +758,18 @@ router.post('/export/docx', async (req, res) => {
                                 spacing: { after: 100 }
                             }))
                     ]),
-                    // References section
-                    new Paragraph({
-                        text: "References",
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: { before: 400, after: 200 }
-                    }),
-                    // You can add formatted references here if available
+                    // Ensure References section is properly formatted
+                    ...(sections.some(s => s.title === 'References') ? [] : [
+                        new Paragraph({
+                            text: "References",
+                            heading: HeadingLevel.HEADING_2,
+                            spacing: { before: 400, after: 200 }
+                        }),
+                        new Paragraph({
+                            text: "References will be automatically generated here",
+                            spacing: { after: 100 }
+                        })
+                    ])
                 ]
             }]
         });
@@ -725,20 +882,20 @@ router.post('/export/pdf', async (req, res) => {
             }
         });
 
-        // Add references section if needed
-        doc.addPage()
-            .font(headingFont)
-            .fontSize(16)
-            .text('References', { paragraphGap: 10 })
-            .moveDown(0.5);
-
-        // You can add formatted references here
-        doc.font(bodyFont)
-            .fontSize(fontSize)
-            .text('References will be automatically generated here', {
-                align: 'left',
-                lineGap: 5
-            });
+        // Ensure References section exists
+        if (!sections.some(s => s.title === 'References')) {
+            doc.addPage()
+                .font(headingFont)
+                .fontSize(16)
+                .text('References', { paragraphGap: 10 })
+                .moveDown(0.5)
+                .font(bodyFont)
+                .fontSize(fontSize)
+                .text('References will be automatically generated here', {
+                    align: 'left',
+                    lineGap: 5
+                });
+        }
 
         // Finalize the PDF
         doc.end();

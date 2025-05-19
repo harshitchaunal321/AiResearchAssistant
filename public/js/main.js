@@ -1,3 +1,21 @@
+// Error Messages
+const ERROR_MESSAGES = {
+    NETWORK: "Network error occurred. Please check your internet connection and try again.",
+    SERVER: "Our servers are experiencing issues. Please try again later.",
+    TIMEOUT: "Request timed out. Please try again.",
+    DEFAULT: "An unexpected error occurred. Please try again.",
+    INVALID_INPUT: "Please check your input and try again.",
+    PDF: "Couldn't process the PDF. Please ensure it's a valid research paper.",
+    SUMMARIZATION: "Couldn't summarize this content. Please try with different content.",
+    CITATION: "Couldn't generate citation. Please check the paper details.",
+    SEARCH: "Couldn't search for papers. Please try different keywords.",
+    REFINEMENT: "Couldn't refine your topic. Please try a different description.",
+    PLAGIARISM: "Couldn't check for plagiarism. Please try again.",
+    DRAFT: "Couldn't generate draft. Please check your inputs.",
+    EXPORT: "Couldn't generate export file. Please try again.",
+    FILE_UPLOAD: "File upload failed. Please try a different file.",
+    API_LIMIT: "Too many requests. Please wait a moment and try again."
+};
 document.addEventListener('DOMContentLoaded', function () {
     // Tab switching functionality
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -129,11 +147,78 @@ document.addEventListener('DOMContentLoaded', function () {
                 summarizePaper();
             }
         });
+
     });
 
 
 });
 document.getElementById('clear-data-btn').addEventListener('click', clearAllData);
+
+// Mobile sidebar toggle
+document.addEventListener('DOMContentLoaded', function () {
+    const hamburger = document.querySelector('.hamburger');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+
+    if (hamburger && sidebar) {
+        hamburger.addEventListener('click', function () {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('open');
+        });
+    }
+
+    if (overlay) {
+        overlay.addEventListener('click', function () {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('open');
+        });
+    }
+
+    // Close sidebar when clicking a tab on mobile
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+            if (window.innerWidth <= 1024) {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('open');
+            }
+        });
+    });
+});
+
+let refinementData = {
+    researchGaps: [],
+    selectedGaps: [],
+    hypotheses: [],
+    selectedHypotheses: [],
+    narrowedTopics: [],
+    selectedTopics: []
+};
+
+let selectedPapers = [];
+
+const motivationalQuotes = [
+    "Research is creating new knowledge. - Neil Armstrong",
+    "The important thing is not to stop questioning. - Albert Einstein",
+    "If we knew what we were doing, it wouldn't be called research. - Albert Einstein",
+    "Research is formalized curiosity. - Zora Neale Hurston",
+    "The best way to predict the future is to create it. - Alan Kay",
+    "Innovation distinguishes between a leader and a follower. - Steve Jobs",
+    "Science is the acceptance of what works and the rejection of what does not. - Jacob Bronowski",
+    "The art and science of asking questions is the source of all knowledge. - Thomas Berger",
+    "Research is seeing what everybody else has seen and thinking what nobody else has thought. - Albert Szent-Györgyi",
+    "The scientist is not a person who gives the right answers, but one who asks the right questions. - Claude Lévi-Strauss"
+];
+
+function showLoader() {
+    const randomQuote = motivationalQuotes[Math.floor(Math.random() * motivationalQuotes.length)];
+    document.getElementById('motivational-quote').textContent = randomQuote;
+    document.getElementById('fullpage-loader').classList.remove('hidden');
+}
+
+function hideLoader() {
+    document.getElementById('fullpage-loader').classList.add('hidden');
+}
 
 
 function clearAllData() {
@@ -159,6 +244,114 @@ function clearAllData() {
         alert('All saved data has been cleared.');
     }
 }
+
+// Helper function to display errors
+function showError(message, elementId = null, isToast = false) {
+    hideLoader();
+
+    const errorHtml = `
+    <div class="error-message ${isToast ? 'toast' : ''}">
+      <i class="fas fa-exclamation-triangle"></i>
+      <div>
+        <h4>${isToast ? 'Error' : 'Something went wrong'}</h4>
+        <p>${message}</p>
+      </div>
+      <button class="btn-icon" onclick="this.closest('.error-message').remove()">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+  `;
+
+    if (elementId) {
+        const container = document.getElementById(elementId);
+        if (container) {
+            container.innerHTML = errorHtml;
+            return;
+        }
+    }
+    // Show as toast if no container specified
+    document.body.insertAdjacentHTML('afterbegin', errorHtml);
+
+    // Auto-dismiss toast after 5 seconds
+    if (isToast) {
+        setTimeout(() => {
+            const toast = document.querySelector('.error-message.toast');
+            if (toast) toast.remove();
+        }, 5000);
+    }
+}
+
+// Helper function to handle API errors
+async function handleApiError(error, context) {
+    console.error(`Error in ${context}:`, error);
+
+    let userMessage = ERROR_MESSAGES.DEFAULT;
+
+    if (error.message.includes('Network Error') || error.message.includes('Failed to fetch')) {
+        userMessage = ERROR_MESSAGES.NETWORK;
+    } else if (error.response) {
+        // Handle HTTP error responses
+        const serverMessage = error.response.data?.message || error.message;
+
+        if (error.response.status === 400) {
+            userMessage = serverMessage || ERROR_MESSAGES.INVALID_INPUT;
+        } else if (error.response.status === 429) {
+            userMessage = ERROR_MESSAGES.API_LIMIT;
+        } else if (error.response.status >= 500) {
+            userMessage = ERROR_MESSAGES.SERVER;
+        }
+    } else if (error.message.includes('timeout')) {
+        userMessage = ERROR_MESSAGES.TIMEOUT;
+    }
+
+    // Context-specific messages
+    const contextMap = {
+        'search': ERROR_MESSAGES.SEARCH,
+        'summar': ERROR_MESSAGES.SUMMARIZATION,
+        'citation': ERROR_MESSAGES.CITATION,
+        'refine': ERROR_MESSAGES.REFINEMENT,
+        'plagiarism': ERROR_MESSAGES.PLAGIARISM,
+        'draft': ERROR_MESSAGES.DRAFT,
+        'export': ERROR_MESSAGES.EXPORT,
+        'upload': ERROR_MESSAGES.FILE_UPLOAD
+    };
+
+    for (const [key, msg] of Object.entries(contextMap)) {
+        if (context.includes(key)) {
+            userMessage = msg;
+            break;
+        }
+    }
+
+    showError(userMessage, `${context}-results`);
+    return { error: true, message: userMessage };
+}
+// Enhanced fetch with timeout
+async function fetchWithTimeout(resource, options = {}) {
+    const { timeout = 30000 } = options;
+
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeout);
+
+    const response = await fetch(resource, {
+        ...options,
+        signal: controller.signal
+    });
+
+    clearTimeout(id);
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw {
+            response,
+            message: errorData.message || `HTTP error! status: ${response.status}`,
+            status: response.status
+        };
+    }
+
+    return response;
+}
+
 
 function startDraftGeneration() {
     document.querySelector('.draft-intro').classList.add('hidden');
@@ -203,13 +396,13 @@ function loadSavedSummaries() {
     if (uniqueSummaries.length > 0) {
         uniqueSummaries.forEach(summary => {
             const checkbox = document.createElement('div');
-            checkbox.className = 'summary-checkbox';
+            checkbox.className = 'option-card';
             checkbox.innerHTML = `
-                <label>
-                    <input type="checkbox" name="selected-summaries" value="${summary.id}" checked>
-                    <span class="summary-title">${summary.title}</span>
-                    <span class="summary-source">(${summary.source})</span>
-                </label>
+                <input type="checkbox" name="selected-summaries" value="${summary.id}" checked id="summary-${summary.id}">
+                <div class="option-card-content">
+                    <div class="option-card-title">${summary.title}</div>
+                    <div class="option-card-source">${summary.source}</div>
+                </div>
             `;
             summarySelection.appendChild(checkbox);
         });
@@ -261,6 +454,7 @@ function getRefinementData() {
 }
 
 async function generateDraft() {
+    showLoader(); // Show full-page loader
     const btn = document.getElementById('generate-draft-btn');
     const originalText = btn.textContent;
     btn.innerHTML = `${originalText} <span class="loading"></span>`;
@@ -290,7 +484,7 @@ async function generateDraft() {
         let finalTitle = title;
         if (!title && objective) {
             try {
-                const response = await fetch('/api/generate-title', {
+                const response = await fetch(window.location.origin + '/api/generate-title', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text: objective })
@@ -321,7 +515,7 @@ async function generateDraft() {
             tone: document.getElementById('tone').value,
         };
 
-        const response = await fetch('/api/drafts/generate', {
+        const response = await fetch(window.location.origin + '/api/drafts/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(config)
@@ -342,6 +536,7 @@ async function generateDraft() {
         console.error('Error generating draft:', error);
         alert('Error generating draft: ' + error.message);
     } finally {
+        hideLoader(); // Hide loader when done
         btn.textContent = originalText;
         btn.disabled = false;
     }
@@ -436,7 +631,7 @@ async function exportAsDocx() {
         });
 
         // Generate properly formatted DOCX
-        const response = await fetch('/api/export/docx', {
+        const response = await fetch(window.location.origin + '/api/export/docx', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -478,7 +673,7 @@ async function exportAsPdf() {
         });
 
         // Generate properly formatted PDF
-        const response = await fetch('/api/export/pdf', {
+        const response = await fetch(window.location.origin + '/api/export/pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -530,7 +725,7 @@ async function exportAsLatex() {
         });
 
         // Generate properly formatted LaTeX
-        const response = await fetch('/api/export/latex', {
+        const response = await fetch(window.location.origin + '/api/export/latex', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -563,7 +758,7 @@ async function saveDraft() {
     const draftContent = document.getElementById('draft-content').innerHTML;
 
     try {
-        const response = await fetch('/api/drafts/save', {
+        const response = await fetch(window.location.origin + '/api/drafts/save', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -591,39 +786,48 @@ async function searchLiterature() {
         return;
     }
 
+    showLoader(); // Show full-page loader
+
     const btn = document.getElementById('search-btn');
     const originalText = btn.textContent;
     btn.innerHTML = `${originalText} <span class="loading"></span>`;
     btn.disabled = true;
 
     try {
-        const response = await fetch('/api/literature/search', {
+        console.log(`Searching for topic: "${topic}"`); // Debug log
+
+        const response = await fetch(window.location.origin + '/api/literature/search', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ topic }) // Ensure proper JSON format
+            body: JSON.stringify({ topic })
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
 
         const data = await response.json();
+        console.log('Search results:', data); // Debug log
+
         displayLiteratureResults(data);
     } catch (error) {
         console.error('Error searching literature:', error);
-        alert('Error searching literature: ' + error.message);
 
         // Show error in results container
         const resultsContainer = document.getElementById('literature-results');
         resultsContainer.innerHTML = `
             <div class="error-message">
-                <p>Failed to search literature. Please try again.</p>
-                <p>Details: ${error.message}</p>
+                <i class="fas fa-exclamation-triangle"></i>
+                <h4>Error searching literature</h4>
+                <p>${error.message}</p>
+                <p>Please try again with different search terms.</p>
             </div>
         `;
     } finally {
+        hideLoader(); // Hide loader when done
         btn.textContent = originalText;
         btn.disabled = false;
     }
@@ -636,9 +840,14 @@ function displayLiteratureResults(data) {
     if (!data.papers || data.papers.length === 0) {
         resultsContainer.innerHTML = `
             <div class="no-results">
+                <i class="fas fa-book-open"></i>
+                <h3>No papers found</h3>
                 <p>No papers found for "${data.originalQuery}".</p>
                 ${data.refinedQuery !== data.originalQuery ?
                 `<p>Search was attempted with refined query: "${data.refinedQuery}"</p>` : ''}
+                <button class="btn btn-outline" onclick="searchLiterature()">
+                    <i class="fas fa-sync-alt"></i> Try Again
+                </button>
             </div>
         `;
         return;
@@ -651,16 +860,25 @@ function displayLiteratureResults(data) {
     if (papersWithAbstracts.length === 0) {
         resultsContainer.innerHTML = `
             <div class="no-results">
-                <p>No papers with abstracts found for "${data.originalQuery}".</p>
-                <p>Try a different search term or check back later.</p>
+                <i class="fas fa-book-open"></i>
+                <h3>No papers with abstracts found</h3>
+                <p>Found ${data.papers.length} papers but none had readable abstracts.</p>
+                <button class="btn btn-outline" onclick="searchLiterature()">
+                    <i class="fas fa-sync-alt"></i> Try Again
+                </button>
             </div>
         `;
         return;
     }
 
+    // Clear previous selections
+    selectedPapers = [];
+    updateSelectedPapersList();
+
     papersWithAbstracts.forEach(paper => {
         const paperEl = document.createElement('div');
-        paperEl.className = 'paper-result';
+        paperEl.className = 'paper-result selectable-paper';
+        paperEl.dataset.paperId = paper.id;
 
         let authors = paper.authors?.join(', ') || 'Unknown authors';
         if (authors.length > 100) {
@@ -675,7 +893,12 @@ function displayLiteratureResults(data) {
         const sourceBadge = `<span class="source-badge">${paper.source}</span>`;
 
         paperEl.innerHTML = `
-            <h3>${paper.title || 'Untitled'} ${sourceBadge}</h3>
+            <div class="paper-header">
+                <h3>${paper.title || 'Untitled'} ${sourceBadge}</h3>
+                <button class="select-paper-btn">
+                    <i class="far fa-square"></i> Select
+                </button>
+            </div>
             <div class="meta">
                 <span>By ${authors}</span> | 
                 <span>${paper.publication || 'Unknown publication'}</span> | 
@@ -687,15 +910,144 @@ function displayLiteratureResults(data) {
                 <div class="abstract">${shortenedAbstract}</div>
             </div>
             <div class="actions">
-                <button onclick="summarizePaperById('${paper.id}', '${paper.title || 'Untitled'}', '${paper.url || ''}', '${paper.pdfUrl || ''}')">Summarize</button>
-                <button onclick="generateCitationForPaper('${paper.id}', '${paper.title || 'Untitled'}')">Generate Citation</button>
-                ${paper.url ? `<a href="${paper.url}" target="_blank"><button>View Paper</button></a>` : ''}
-                ${paper.pdfUrl ? `<a href="${paper.pdfUrl}" target="_blank"><button>Download PDF</button></a>` : ''}
-            </div>`;
+                <button onclick="summarizePaperById('${paper.id}', '${escapeHtml(paper.title || 'Untitled')}', '${escapeHtml(paper.url || '')}', '${escapeHtml(paper.pdfUrl || '')}')">
+                    <i class="fas fa-file-contract"></i> Summarize
+                </button>
+                <button onclick="generateCitationForPaper('${paper.id}', '${escapeHtml(paper.title || 'Untitled')}')">
+                    <i class="fas fa-quote-right"></i> Citation
+                </button>
+                ${paper.url ? `<a href="${paper.url}" target="_blank"><button><i class="fas fa-external-link-alt"></i> View</button></a>` : ''}
+                ${paper.pdfUrl ? `<a href="${paper.pdfUrl}" target="_blank"><button><i class="fas fa-file-pdf"></i> PDF</button></a>` : ''}
+            </div>
+        `;
+
+        // Add select event listener
+        const selectBtn = paperEl.querySelector('.select-paper-btn');
+        selectBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            togglePaperSelection(paper, selectBtn);
+        });
 
         resultsContainer.appendChild(paperEl);
     });
+
+    // Show the selected papers container
+    document.getElementById('selected-papers-container').classList.remove('hidden');
 }
+
+// Helper function to escape HTML for use in attributes
+function escapeHtml(unsafe) {
+    if (!unsafe) return '';
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function togglePaperSelection(paper, button) {
+    const index = selectedPapers.findIndex(p => p.id === paper.id);
+
+    if (index === -1) {
+        if (selectedPapers.length >= 5) {
+            alert('You can select a maximum of 5 papers');
+            return;
+        }
+        selectedPapers.push(paper);
+        button.innerHTML = '<i class="far fa-check-square"></i> Selected';
+        button.classList.add('selected');
+    } else {
+        selectedPapers.splice(index, 1);
+        button.innerHTML = '<i class="far fa-square"></i> Select';
+        button.classList.remove('selected');
+    }
+
+    updateSelectedPapersList();
+}
+
+function updateSelectedPapersList() {
+    const list = document.getElementById('selected-papers-list');
+    list.innerHTML = '';
+
+    selectedPapers.forEach((paper, index) => {
+        const paperEl = document.createElement('div');
+        paperEl.className = 'selected-paper';
+        paperEl.innerHTML = `
+            <span class="paper-title">${paper.title}</span>
+            <button class="btn-icon remove-paper" data-paper-id="${paper.id}">
+                <i class="fas fa-times"></i>
+            </button>
+        `;
+        list.appendChild(paperEl);
+    });
+
+    // Add event listeners to all remove buttons
+    document.querySelectorAll('.remove-paper').forEach(button => {
+        button.addEventListener('click', function () {
+            const paperId = this.getAttribute('data-paper-id');
+            removeSelectedPaper(paperId);
+        });
+    });
+
+    // Enable/disable proceed button based on selection
+    document.getElementById('proceed-to-draft-btn').disabled = selectedPapers.length === 0;
+}
+function removeSelectedPaper(paperId) {
+    // Remove from selected papers array
+    const index = selectedPapers.findIndex(p => p.id === paperId);
+    if (index !== -1) {
+        selectedPapers.splice(index, 1);
+    }
+
+    // Update the UI
+    updateSelectedPapersList();
+
+    // Also update the select buttons in the papers list
+    const paperElement = document.querySelector(`.paper-result[data-paper-id="${paperId}"]`);
+    if (paperElement) {
+        const selectBtn = paperElement.querySelector('.select-paper-btn');
+        if (selectBtn) {
+            selectBtn.innerHTML = '<i class="far fa-square"></i> Select';
+            selectBtn.classList.remove('selected');
+            paperElement.classList.remove('selected-paper');
+        }
+    }
+}
+
+// Add event listener for proceeding to draft generator
+document.getElementById('proceed-to-draft-btn').addEventListener('click', function () {
+    // Switch to draft generator tab
+    document.querySelector('[data-tab="draft-generator"]').click();
+
+    // Load the selected papers into the draft generator
+    loadSelectedPapersForDraft();
+});
+
+function loadSelectedPapersForDraft() {
+    const summarySelection = document.getElementById('summary-selection');
+    summarySelection.innerHTML = '';
+
+    selectedPapers.forEach(paper => {
+        const checkbox = document.createElement('div');
+        checkbox.className = 'paper-checkbox';
+        checkbox.innerHTML = `
+            <label>
+                <input type="checkbox" name="selected-summaries" value="${paper.id}" checked>
+                <span class="paper-title">${paper.title}</span>
+                <span class="paper-source">(${paper.source})</span>
+                <a href="${paper.url}" target="_blank" class="paper-link"><i class="fas fa-external-link-alt"></i></a>
+            </label>
+        `;
+        summarySelection.appendChild(checkbox);
+    });
+
+    // Show the draft config section
+    document.querySelector('.draft-intro').classList.add('hidden');
+    document.querySelector('.draft-config').classList.remove('hidden');
+}
+
+
 
 document.addEventListener('DOMContentLoaded', function () {
     // Tab switching functionality
@@ -780,6 +1132,7 @@ async function summarizePaper(event) {
         return;
     }
 
+    showLoader(); // Show full-page loader
     const btn = document.getElementById('summarize-btn');
     const originalText = btn.innerHTML;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
@@ -794,26 +1147,42 @@ async function summarizePaper(event) {
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
 
-            const response = await fetch('/api/summarize-pdf', {
+            const response = await fetchWithTimeout('/api/summarize-pdf', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                timeout: 60000
             });
 
-            if (!response.ok) {
-                throw new Error(await response.text() || 'Failed to summarize PDF');
+            // if (!response.ok) {
+            //     throw new Error(await response.text() || 'Failed to summarize PDF');
+            // }
+            const data = await response.json();
+
+            if (!data.success) {
+                throw new Error(data.message || 'PDF summarization failed');
             }
-            summary = await response.json();
+            summary = data;
         } else {
-            const response = await fetch('/api/summarize-url', {
+            const response = await fetchWithTimeout('/api/summarize-url', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url: paperUrl })
+                body: JSON.stringify({ url: paperUrl }),
+                timeout: 30000
             });
+            const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(await response.text() || 'Failed to summarize URL');
-            }
-            summary = await response.json();
+            console.log('URL summarization response:', data); // Debug log
+
+            // if (!data.success) {
+            //     throw new Error(data.message || 'URL summarization failed');
+            // }
+
+            summary = data;
+
+            // if (!response.ok) {
+            //     throw new Error(await response.text() || 'Failed to summarize URL');
+            // }
+            // summary = await response.json();
         }
 
         // Save the summary
@@ -841,6 +1210,7 @@ async function summarizePaper(event) {
             </div>
         `;
     } finally {
+        hideLoader(); // Hide loader when done
         btn.innerHTML = originalText;
         btn.disabled = false;
     }
@@ -927,7 +1297,7 @@ async function generateCitationForPaper(paperId, paperTitle) {
 
     try {
         const style = document.getElementById('citation-style').value;
-        const response = await fetch('/api/citations/generate', {
+        const response = await fetch(window.location.origin + '/api/citations/generate', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -964,6 +1334,7 @@ async function generateCitation() {
         alert('Please enter a paper title, DOI or URL');
         return;
     }
+    showLoader(); // Show full-page loader
 
     const btn = document.getElementById('generate-citation-btn');
     const originalText = btn.textContent;
@@ -971,7 +1342,7 @@ async function generateCitation() {
     btn.disabled = true;
 
     try {
-        const response = await fetch('/api/citations/generate', {
+        const response = await fetch(window.location.origin + '/api/citations/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ paperId, style })
@@ -1000,6 +1371,7 @@ async function generateCitation() {
         console.error('Error generating citation:', error);
         alert('Error generating citation: ' + error.message);
     } finally {
+        hideLoader(); // Hide loader when done
         btn.textContent = originalText;
         btn.disabled = false;
     }
@@ -1057,13 +1429,15 @@ async function refineTopic() {
         return;
     }
 
+    showLoader(); // Show full-page loader
+
     const btn = document.getElementById('refine-topic-btn');
     const originalText = btn.textContent;
     btn.innerHTML = `${originalText} <span class="loading"></span>`;
     btn.disabled = true;
 
     try {
-        const response = await fetch('/api/topics/refine', {
+        const response = await fetch(window.location.origin + '/api/topics/refine', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ researchProblem })
@@ -1073,24 +1447,162 @@ async function refineTopic() {
 
         const data = await response.json();
 
-        // Save refinement data for draft generation
-        const refinementData = {
-            topic: researchProblem,
-            researchGaps: data.researchGaps || [],
-            keywords: data.keywords || [],
-            hypotheses: data.hypotheses || []
-        };
-        localStorage.setItem('refinementData', JSON.stringify(refinementData));
+        // Store the refinement data
+        refinementData.researchGaps = data.researchGaps.slice(0, 10); // Get top 10 gaps
+        refinementData.hypotheses = data.hypotheses;
+        refinementData.narrowedTopics = data.narrowedTopics;
 
-        displayRefinementResults(data);
+        // Display research gaps for selection
+        displayResearchGaps();
+
     } catch (error) {
         console.error('Error refining topic:', error);
         alert('Error refining topic: ' + error.message);
     } finally {
+        hideLoader(); // Hide loader when done
         btn.textContent = originalText;
         btn.disabled = false;
     }
 }
+
+function displayResearchGaps() {
+    const container = document.getElementById('research-gaps-container');
+    const list = document.getElementById('research-gaps-list');
+    const emptyState = document.querySelector('#refinement-results .empty-state');
+
+    // Hide the empty state now that we have results
+    if (emptyState) {
+        emptyState.classList.add('hidden');
+    }
+
+    list.innerHTML = '';
+    refinementData.researchGaps.forEach((gap, index) => {
+        const checkbox = document.createElement('div');
+        checkbox.className = 'option-card';
+        checkbox.innerHTML = `
+            <input type="checkbox" name="selected-gaps" value="${index}" id="gap-${index}">
+            <div class="option-card-content">
+                <div class="option-card-title">${gap}</div>
+            </div>
+        `;
+        list.appendChild(checkbox);
+    });
+
+    container.classList.remove('hidden');
+    document.getElementById('hypotheses-container').classList.add('hidden');
+    document.getElementById('narrowed-topics-container').classList.add('hidden');
+}
+
+// Add event listener for selecting gaps
+document.getElementById('select-gaps-btn').addEventListener('click', function () {
+    refinementData.selectedGaps = Array.from(
+        document.querySelectorAll('input[name="selected-gaps"]:checked')
+    ).map(el => refinementData.researchGaps[el.value]);
+
+    if (refinementData.selectedGaps.length === 0) {
+        alert('Please select at least one research gap');
+        return;
+    }
+
+    displayHypotheses();
+});
+
+function displayHypotheses() {
+    const container = document.getElementById('hypotheses-container');
+    const list = document.getElementById('hypotheses-list');
+
+    list.innerHTML = '';
+    refinementData.hypotheses.forEach((hypothesis, index) => {
+        const checkbox = document.createElement('div');
+        checkbox.className = 'option-card';
+        checkbox.innerHTML = `
+            <input type="checkbox" name="selected-hypotheses" value="${index}" id="hypothesis-${index}">
+            <div class="option-card-content">
+                <div class="option-card-title">${hypothesis}</div>
+            </div>
+        `;
+        list.appendChild(checkbox);
+    });
+
+    container.classList.remove('hidden');
+}
+
+// Add event listener for selecting hypotheses
+document.getElementById('select-hypotheses-btn').addEventListener('click', function () {
+    refinementData.selectedHypotheses = Array.from(
+        document.querySelectorAll('input[name="selected-hypotheses"]:checked')
+    ).map(el => refinementData.hypotheses[el.value]);
+
+    if (refinementData.selectedHypotheses.length === 0) {
+        alert('Please select at least one hypothesis');
+        return;
+    }
+
+    displayNarrowedTopics();
+});
+
+function displayNarrowedTopics() {
+    const container = document.getElementById('narrowed-topics-container');
+    const list = document.getElementById('narrowed-topics-list');
+
+    list.innerHTML = '';
+    refinementData.narrowedTopics.forEach((topic, index) => {
+        const checkbox = document.createElement('div');
+        checkbox.className = 'option-card';
+        checkbox.innerHTML = `
+            <input type="checkbox" name="selected-topics" value="${index}" id="topic-${index}">
+            <div class="option-card-content">
+                <div class="option-card-title">${topic}</div>
+            </div>
+        `;
+        list.appendChild(checkbox);
+    });
+
+    container.classList.remove('hidden');
+
+    // Add event listener to enforce max 2 selections
+    list.querySelectorAll('input[name="selected-topics"]').forEach(checkbox => {
+        checkbox.addEventListener('change', function () {
+            const checkedBoxes = list.querySelectorAll('input[name="selected-topics"]:checked');
+            if (checkedBoxes.length > 2) {
+                this.checked = false;
+                alert('You can select a maximum of 2 narrowed topics');
+            }
+        });
+    });
+}
+
+// Add event listener for proceeding to literature search
+document.getElementById('proceed-to-search-btn').addEventListener('click', function () {
+    refinementData.selectedTopics = Array.from(
+        document.querySelectorAll('input[name="selected-topics"]:checked')
+    ).map(el => refinementData.narrowedTopics[el.value]);
+
+    if (refinementData.selectedTopics.length === 0) {
+        alert('Please select at least one topic');
+        return;
+    }
+
+    // Switch to literature search tab and populate the search field
+    // document.querySelector('[data-tab="literature-search"]').click();
+    // document.getElementById('research-topic').value = refinementData.selectedTopics.join(', ');
+
+    // Switch to literature search tab and populate the search field
+    document.querySelector('[data-tab="literature-search"]').click();
+
+    const formattedTopics = refinementData.selectedTopics.map(topic => {
+        // Extract the existing number (like "2." or "3.")
+        const match = topic.match(/^(\d+\.)/);
+        if (match) {
+            return `Topic ${match[1]} ${topic.replace(match[0], '').trim()}`;
+        }
+        return topic; // fallback if no number found
+    }).join(', ');
+
+    document.getElementById('research-topic').value = formattedTopics;
+    // Trigger search automatically
+    searchLiterature();
+});
 
 function displayRefinementResults(data) {
     const resultsContainer = document.getElementById('refinement-results');
@@ -1155,6 +1667,7 @@ async function checkPlagiarism() {
         alert('Please paste your text to check for plagiarism');
         return;
     }
+    showLoader(); // Show full-page loader
 
     const btn = document.getElementById('check-plagiarism-btn');
     const originalText = btn.textContent;
@@ -1162,7 +1675,7 @@ async function checkPlagiarism() {
     btn.disabled = true;
 
     try {
-        const response = await fetch('/api/plagiarism/check', {
+        const response = await fetch(window.location.origin + '/api/plagiarism/check', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1181,6 +1694,7 @@ async function checkPlagiarism() {
         console.error('Error checking plagiarism:', error);
         alert('Error checking plagiarism: ' + error.message);
     } finally {
+        hideLoader(); // Hide loader when done
         btn.textContent = originalText;
         btn.disabled = false;
     }
@@ -1245,4 +1759,5 @@ function displayPlagiarismResults(data) {
 
         resultsContainer.appendChild(detailsEl);
     }
+
 }

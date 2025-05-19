@@ -11,6 +11,17 @@
 </head>
 
 <body>
+    <div id="fullpage-loader" class="hidden">
+        <div class="loader-content">
+            <div class="loader-spinner">
+                <div class="spinner"></div>
+            </div>
+            <div class="loader-quote">
+                <p id="motivational-quote">"Research is creating new knowledge." - Neil Armstrong</p>
+                <p class="loader-subtext">Processing your request...</p>
+            </div>
+        </div>
+    </div>
     <div class="app-container">
         <header class="app-header">
             <div class="header-content">
@@ -23,15 +34,37 @@
                         <i class="fas fa-user"></i> Sign In
                     </button>
                 </div> -->
+                <!-- Add a hamburger menu for mobile -->
+                <!-- <button class="mobile-menu-btn" id="mobile-menu-btn">
+                    <i class="fas fa-bars"></i>
+                </button> -->
             </div>
         </header>
 
+        <!-- Add these new elements right here -->
+        <div class="mobile-header">
+            <button class="hamburger">☰</button>
+            <div class="mobile-logo">Research Assistant</div>
+            <div></div> <!-- Spacer -->
+        </div>
+
+        <div class="sidebar-overlay"></div>
+        <!-- End of new elements -->
+
         <div class="app-main">
-            <aside class="sidebar">
+            <aside class="sidebar" id="sidebar">
                 <nav class="tabs">
-                    <button class="tab-btn active" data-tab="literature-search">
+                    <button class="tab-btn active" data-tab="topic-refinement">
+                        <i class="fas fa-lightbulb"></i>
+                        <span>Topic Refinement</span>
+                    </button>
+                    <button class="tab-btn" data-tab="literature-search">
                         <i class="fas fa-search"></i>
                         <span>Literature Search</span>
+                    </button>
+                    <button class="tab-btn" data-tab="draft-generator">
+                        <i class="fas fa-pen-fancy"></i>
+                        <span>Draft Generator</span>
                     </button>
                     <button class="tab-btn" data-tab="paper-summarizer">
                         <i class="fas fa-file-alt"></i>
@@ -41,18 +74,14 @@
                         <i class="fas fa-quote-right"></i>
                         <span>Citation Generator</span>
                     </button>
-                    <button class="tab-btn" data-tab="topic-refinement">
-                        <i class="fas fa-lightbulb"></i>
-                        <span>Topic Refinement</span>
-                    </button>
                     <button class="tab-btn" data-tab="plagiarism-check">
                         <i class="fas fa-clipboard-check"></i>
                         <span>Plagiarism Check</span>
                     </button>
-                    <button class="tab-btn" data-tab="draft-generator">
-                        <i class="fas fa-pen-fancy"></i>
-                        <span>Draft Generator</span>
-                    </button>
+                    <!-- <button class="tab-btn" data-tab="case-study-generator">
+                        <i class="fas fa-book-open"></i>
+                        <span>Case Study Generator</span>
+                    </button> -->
                 </nav>
                 <div class="sidebar-footer">
                     <!-- <nav class="tabs">
@@ -65,9 +94,10 @@
 
             <main class="content-area">
                 <!-- Literature Search -->
-                <div class="tab-content active" id="literature-search">
+                <div class="tab-content" id="literature-search">
                     <div class="content-header">
-                        <h2>Literature Search Assistant</h2>
+                        <h2>Literature Search Assistant <small style="font-weight: normal;">(Select up to
+                                max 5)</small></h2>
                         <p>Discover relevant academic papers for your research topic</p>
                     </div>
                     <div class="content-body">
@@ -89,6 +119,13 @@
                                 <h3>Search for academic literature</h3>
                                 <p>Enter a research topic above to find relevant papers</p>
                             </div>
+                        </div>
+                        <div id="selected-papers-container" class="hidden">
+                            <h4>Selected Papers for Draft Generation</h4>
+                            <div id="selected-papers-list"></div>
+                            <button id="proceed-to-draft-btn" class="btn btn-primary">
+                                <i class="fas fa-arrow-right"></i> Proceed to Draft Generator
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -157,6 +194,10 @@
                                     <option value="mla">MLA</option>
                                     <option value="ieee">IEEE</option>
                                     <option value="harvard">Harvard</option>
+                                    <option value="chicago">Chicago</option>
+                                    <option value="vancouver">Vancouver</option>
+                                    <option value="ama">AMA</option>
+                                    <option value="acs">ACS</option>
                                 </select>
                                 <button id="generate-citation-btn" class="btn btn-primary">
                                     <i class="fas fa-magic"></i> Generate Citation
@@ -174,7 +215,7 @@
                     </div>
                 </div>
 
-                <div class="tab-content" id="topic-refinement">
+                <div class="tab-content active" id="topic-refinement">
                     <div class="content-header">
                         <h2>Topic Refinement & Gap Finder</h2>
                         <p>Improve your research focus and identify knowledge gaps</p>
@@ -189,11 +230,40 @@
                                 </button>
                             </div>
                         </div>
+
                         <div class="results-container" id="refinement-results">
                             <div class="empty-state">
                                 <i class="fas fa-search-plus"></i>
                                 <h3>Refine your research topic</h3>
                                 <p>Describe your research problem to get suggestions for improvement</p>
+                            </div>
+
+                            <!-- Research Gaps Selection -->
+                            <div id="research-gaps-container" class="hidden">
+                                <h4>Potential Research Gaps</h4>
+                                <div id="research-gaps-list" class="checkbox-group"></div>
+                                <button id="select-gaps-btn" class="btn btn-primary">
+                                    <i class="fas fa-arrow-down"></i> Generate Hypotheses
+                                </button>
+                            </div>
+
+                            <!-- Hypotheses Selection -->
+                            <div id="hypotheses-container" class="hidden">
+                                <h4>Possible Hypotheses</h4>
+                                <div id="hypotheses-list" class="checkbox-group"></div>
+                                <button id="select-hypotheses-btn" class="btn btn-primary">
+                                    <i class="fas fa-arrow-down"></i> Generate Narrowed Topics
+                                </button>
+                            </div>
+
+                            <!-- Narrowed Topics Selection -->
+                            <div id="narrowed-topics-container" class="hidden">
+                                <h4>Suggested Narrowed Topics <small style="font-weight: normal;">(Select up to
+                                        2)</small></h4>
+                                <div id="narrowed-topics-list" class="checkbox-group"></div>
+                                <button id="proceed-to-search-btn" class="btn btn-primary">
+                                    <i class="fas fa-arrow-right"></i> Proceed to Literature Search
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -220,6 +290,63 @@
                                 <h3>Check your text for plagiarism</h3>
                                 <p>Paste your text above to analyze for originality</p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add this with your other tab-content divs -->
+                <div class="tab-content" id="case-study-generator">
+                    <div class="content-header">
+                        <h2>Case Study Generator</h2>
+                        <p>Generate comprehensive case studies for your research</p>
+                    </div>
+                    <div class="content-body">
+                        <div class="input-card">
+                            <div class="input-group">
+                                <textarea id="case-study-topic"
+                                    placeholder="Enter your case study topic or research question..."></textarea>
+                                <div class="form-grid">
+                                    <div class="input-group">
+                                        <label for="case-study-type">Case Study Type</label>
+                                        <select id="case-study-type">
+                                            <option value="exploratory">Exploratory</option>
+                                            <option value="descriptive">Descriptive</option>
+                                            <option value="explanatory">Explanatory</option>
+                                            <option value="comparative">Comparative</option>
+                                            <option value="critical-instance">Critical Instance</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="case-study-length">Length</label>
+                                        <select id="case-study-length">
+                                            <option value="short">Short (1,000 words)</option>
+                                            <option value="medium" selected>Medium (2,000 words)</option>
+                                            <option value="long">Long (3,500 words)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button id="generate-case-study-btn" class="btn btn-primary">
+                                    <i class="fas fa-magic"></i> Generate Case Study
+                                </button>
+                            </div>
+                        </div>
+                        <div class="results-container" id="case-study-results">
+                            <div class="empty-state">
+                                <i class="fas fa-book-open"></i>
+                                <h3>No case study generated yet</h3>
+                                <p>Enter a topic and generate your case study</p>
+                            </div>
+                        </div>
+                        <div class="case-study-actions hidden" id="case-study-actions">
+                            <button id="export-case-study-docx" class="btn btn-outline">
+                                <i class="fas fa-file-word"></i> Export as DOCX
+                            </button>
+                            <button id="export-case-study-pdf" class="btn btn-outline">
+                                <i class="fas fa-file-pdf"></i> Export as PDF
+                            </button>
+                            <button id="save-case-study" class="btn btn-primary">
+                                <i class="fas fa-save"></i> Save Case Study
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -259,7 +386,7 @@
                                 </div>
 
                                 <div class="config-section">
-                                    <h4><i class="fas fa-file-alt"></i> Include Summaries</h4>
+                                    <h4><i class="fas fa-file-alt"></i> Include Papers</h4>
                                     <button class="tab-btn" id="clear-data-btn">
                                         <i class="fas fa-trash-alt"></i>
                                         <span>Clear All Data</span>
@@ -303,6 +430,10 @@
                                                 <option value="mla">MLA</option>
                                                 <option value="ieee">IEEE</option>
                                                 <option value="harvard">Harvard</option>
+                                                <option value="chicago">Chicago</option>
+                                                <option value="vancouver">Vancouver</option>
+                                                <option value="ama">AMA</option>
+                                                <option value="acs">ACS</option>
                                             </select>
                                         </div>
                                         <div class="input-group">
@@ -321,6 +452,11 @@
                                             <select id="tone">
                                                 <option value="academic" selected>Academic</option>
                                                 <option value="conversational">Conversational</option>
+                                                <option value="formal">Formal</option>
+                                                <option value="technical">Technical</option>
+                                                <option value="simplified">Simplified</option>
+                                                <option value="persuasive">Persuasive</option>
+                                                <option value="descriptive">Descriptive</option>
                                             </select>
                                         </div>
                                         <!-- <div class="input-group">
@@ -385,6 +521,7 @@
             </main>
         </div>
     </div>
+
 
     <script src="js/main.js"></script>
 </body>
