@@ -1147,10 +1147,10 @@ async function summarizePaper(event) {
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
 
-            const response = await fetchWithTimeout('/api/summarize-pdf', {
+
+            const response = await fetch(window.location.origin + '/api/summarize-pdf', {
                 method: 'POST',
                 body: formData,
-                timeout: 60000
             });
 
             // if (!response.ok) {
@@ -1163,11 +1163,10 @@ async function summarizePaper(event) {
             }
             summary = data;
         } else {
-            const response = await fetchWithTimeout('/api/summarize-url', {
+            const response = await fetch(window.location.origin + '/api/summarize-url', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ url: paperUrl }),
-                timeout: 30000
             });
             const data = await response.json();
 
