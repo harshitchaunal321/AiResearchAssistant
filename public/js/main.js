@@ -1172,9 +1172,9 @@ async function summarizePaper(event) {
 
             console.log('URL summarization response:', data); // Debug log
 
-            // if (!data.success) {
-            //     throw new Error(data.message || 'URL summarization failed');
-            // }
+            if (data.statusCode == 500) {
+                throw new Error(data.message || 'URL summarization failed');
+            }
 
             summary = data;
 

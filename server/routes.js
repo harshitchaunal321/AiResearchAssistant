@@ -382,7 +382,7 @@ router.post('/drafts/generate', async (req, res) => {
         // Validate input
         if (!title && !objective) {
             return res.status(400).json({
-                error: 'Either title or research objective is required'
+                error: 'Either title or research Draft Content is required'
             });
         }
 
