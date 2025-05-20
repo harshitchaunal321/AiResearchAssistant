@@ -100,6 +100,11 @@
                                 max 5)</small></h2>
                         <p>Discover relevant academic papers for your research topic</p>
                     </div>
+                    <div class="go-back-container hidden">
+                        <button class="btn btn-outline go-back-btn">
+                            <i class="fas fa-arrow-left"></i> Back to Previous Section
+                        </button>
+                    </div>
                     <div class="content-body">
                         <div class="input-card">
                             <div class="input-group">
@@ -136,6 +141,11 @@
                         <h2>Research Paper Summarizer</h2>
                         <p>Upload a paper or provide a URL to get a concise summary</p>
                     </div>
+                    <div class="go-back-container hidden">
+                        <button class="btn btn-outline go-back-btn">
+                            <i class="fas fa-arrow-left"></i> Back to Previous Section
+                        </button>
+                    </div>
                     <div class="content-body">
                         <div class="input-card">
                             <div class="file-upload-area">
@@ -147,11 +157,13 @@
                                         <i class="fas fa-file-upload"></i> Browse Files
                                     </label>
                                     <input type="file" id="paper-upload" accept=".pdf" hidden>
-                                    <div id="file-info" class="file-info">
-                                        <i class="fas fa-file-pdf"></i>
-                                        <span id="file-name">No file selected</span>
-                                        <button id="remove-file" class="btn-icon"><i class="fas fa-times"></i></button>
-                                    </div>
+                                </div>
+                                <div id="file-selection-display" class="file-selection-display hidden">
+                                    <i class="fas fa-file-pdf"></i>
+                                    <span id="selected-file-name">No file selected</span>
+                                    <button id="remove-file-btn" class="btn-icon">
+                                        <i class="fas fa-times"></i>
+                                    </button>
                                 </div>
                                 <div class="divider">
                                     <span>OR</span>
@@ -181,6 +193,11 @@
                     <div class="content-header">
                         <h2>Citation & Reference Generator</h2>
                         <p>Create properly formatted citations in any style</p>
+                    </div>
+                    <div class="go-back-container hidden">
+                        <button class="btn btn-outline go-back-btn">
+                            <i class="fas fa-arrow-left"></i> Back to Previous Section
+                        </button>
                     </div>
                     <div class="content-body">
                         <div class="input-card">
@@ -219,6 +236,11 @@
                     <div class="content-header">
                         <h2>Topic Refinement & Gap Finder</h2>
                         <p>Improve your research focus and identify knowledge gaps</p>
+                    </div>
+                    <div class="go-back-container hidden">
+                        <button class="btn btn-outline go-back-btn">
+                            <i class="fas fa-arrow-left"></i> Back to Previous Section
+                        </button>
                     </div>
                     <div class="content-body">
                         <div class="input-card">
@@ -273,6 +295,11 @@
                     <div class="content-header">
                         <h2>Plagiarism Pre-check</h2>
                         <p>Ensure your writing is original before submission</p>
+                    </div>
+                    <div class="go-back-container hidden">
+                        <button class="btn btn-outline go-back-btn">
+                            <i class="fas fa-arrow-left"></i> Back to Previous Section
+                        </button>
                     </div>
                     <div class="content-body">
                         <div class="input-card">
@@ -356,6 +383,11 @@
                         <h2>Research Paper Draft Generator</h2>
                         <p>Create a complete first draft using your research materials</p>
                     </div>
+                    <div class="go-back-container hidden">
+                        <button class="btn btn-outline go-back-btn">
+                            <i class="fas fa-arrow-left"></i> Back to Previous Section
+                        </button>
+                    </div>
                     <div class="content-body">
                         <div class="draft-intro">
                             <div class="intro-card">
@@ -407,7 +439,8 @@
                                             <label><input type="checkbox" name="sections" value="introduction" checked>
                                                 Introduction</label>
                                             <label><input type="checkbox" name="sections" value="literature-review"
-                                                    checked> Literature Review</label>
+                                                    checked>
+                                                Literature Review</label>
                                             <label><input type="checkbox" name="sections" value="methodology" checked>
                                                 Methodology</label>
                                             <label><input type="checkbox" name="sections" value="findings" checked>

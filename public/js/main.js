@@ -61,10 +61,21 @@ document.addEventListener('DOMContentLoaded', function () {
         const uploadBox = document.getElementById('upload-box');
         const dropText = document.getElementById('drop-text');
         const fileInput = document.getElementById('paper-upload');
+        const fileSelectionDisplay = document.getElementById('file-selection-display');
+        const selectedFileName = document.getElementById('selected-file-name');
+        const removeFileBtn = document.getElementById('remove-file-btn');
+
         const fileInfo = document.getElementById('file-info');
         const fileName = document.getElementById('file-name');
-        const removeFileBtn = document.getElementById('remove-file');
         const summarizeBtn = document.getElementById('summarize-btn');
+
+        // Handle file selection via browse
+        fileInput.addEventListener('change', function () {
+            if (this.files.length > 0) {
+                const file = this.files[0];
+                updateFileSelectionDisplay(file.name);
+            }
+        });
 
         // Prevent default drag behaviors
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -81,13 +92,25 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         // Handle dropped files
-        uploadBox.addEventListener('drop', handleDrop, false);
+        // Handle dropped files
+        uploadBox.addEventListener('drop', function (e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                fileInput.files = files; // Assign to file input
+                updateFileSelectionDisplay(files[0].name);
+            }
+        });
 
         // Handle file selection via browse
         fileInput.addEventListener('change', handleFileSelect);
 
         // Remove file button
-        removeFileBtn.addEventListener('click', clearFileSelection);
+        removeFileBtn.addEventListener('click', function () {
+            fileInput.value = '';
+            fileSelectionDisplay.classList.add('hidden');
+            dropText.textContent = 'Drag & drop PDF file here';
+        });
 
         function preventDefaults(e) {
             e.preventDefault();
@@ -102,6 +125,12 @@ document.addEventListener('DOMContentLoaded', function () {
         function unhighlight() {
             uploadBox.classList.remove('drag-over');
             dropText.textContent = 'Drag & drop PDF file here';
+        }
+
+        function updateFileSelectionDisplay(fileName) {
+            selectedFileName.textContent = fileName;
+            fileSelectionDisplay.classList.remove('hidden');
+            dropText.textContent = 'File selected:';
         }
 
         function handleDrop(e) {
@@ -1192,12 +1221,14 @@ async function summarizePaper(event) {
             source: paperUrl ? 'URL' : 'Uploaded PDF',
             keyFindings: extractKeyFindings(summary)
         };
-
+        console.log('summaryData:', summaryData); // Debug log
         const summaries = getSavedSummaries();
+        console.log('summaries:', summaries); // Debug log
         summaries.push(summaryData);
         localStorage.setItem('savedSummaries', JSON.stringify(summaries));
-
+        console.log('summaries111:'); // Debug log
         displaySummaryResults(summary);
+        console.log('sectionsend:',); // Debug log
     } catch (error) {
         console.error('Error summarizing:', error);
         resultsContainer.innerHTML = `
@@ -1233,11 +1264,16 @@ function extractKeyFindings(summary) {
 function displaySummaryResults(summary) {
     const resultsContainer = document.getElementById('summary-results');
     resultsContainer.innerHTML = '';
+    console.log('resultsContainer:', resultsContainer); // Debug log
+
 
     if (!summary) {
         resultsContainer.innerHTML = '<p>No summary could be generated for this paper.</p>';
         return;
     }
+
+    console.log('summary:', summary); // Debug log
+
 
     // For HTML-formatted response from Gemini
     if (typeof summary === 'string') {
@@ -1250,6 +1286,7 @@ function displaySummaryResults(summary) {
     // For structured response (if you want to keep compatibility with both)
     else if (typeof summary === 'object') {
         const sections = ['abstract', 'introduction', 'methodology', 'findings', 'conclusion', 'contribution', 'gaps', 'relevance'];
+        console.log('sections:', sections); // Debug log
 
         sections.forEach(section => {
             if (summary[section]) {

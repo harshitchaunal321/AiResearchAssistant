@@ -169,6 +169,7 @@ router.post('/summarize-url', async (req, res) => {
             };
         }
 
+        console.log("--------")
         // Direct PDF handling
         if (url.toLowerCase().endsWith('.pdf')) {
             const response = await axios.get(url, {
@@ -189,12 +190,13 @@ router.post('/summarize-url', async (req, res) => {
         }
 
         // HTML content handling
+        console.log("----111----")
         const response = await axios.get(url, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
             }
         });
-
+        console.log("----2221----")
         const cheerio = require('cheerio');
         const $ = cheerio.load(response.data);
         $('script, style, nav, footer').remove();
@@ -207,8 +209,10 @@ router.post('/summarize-url', async (req, res) => {
         if (!text.trim()) {
             throw new Error('No readable content found on page');
         }
+        console.log("----112221----")
 
         const summary = await summarizeSections(text);
+        console.log('summary text:', summary); // Debug log
         res.json(summary);
     } catch (error) {
         const formattedError = formatError(error, ERROR_MESSAGES.SUMMARIZATION);
@@ -233,71 +237,101 @@ async function extractTextFromPDF(filePath) {
 function splitTextIntoChunks(text, chunkSize = 55000) {
     const chunks = [];
     for (let i = 0; i < text.length; i += chunkSize) {
-        chunks.push(text.slice(i, i + chunkSize));
+        const chunk = text.slice(i, i + chunkSize);
+        // Only push valid, non-empty strings
+        if (typeof chunk === 'string' && chunk.trim().length > 0) {
+            chunks.push(chunk);
+        }
     }
     return chunks;
 }
 
-const GEMINI_API_KEY = "AIzaSyAULoCw_VX9xKlhhakon0Fm19JpkDMnis0";
+const GEMINI_API_KEY = "AIzaSyDDmsKSP6SxrDIBIjKhk6amOMZinAS2XiM";
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-async function summarizeSections(text) {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
+
+async function summarizeSections(text) {
+    if (typeof text !== 'string' || text.trim().length === 0) {
+        console.error("Invalid or empty input text");
+        return "Input is invalid or empty.";
+    }
+    console.log("summarizeSections-----")
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const chunks = splitTextIntoChunks(text, 55000);
     let partialSummaries = [];
 
-    for (const chunk of chunks) {
-        const prompt = `Summarize this document section in academic research paper style:
-  
-  ${chunk}
-  
-  Return a concise summary only.`;
+    console.log(`📦 Total chunks: ${chunks.length}`);
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const content = response.text();
-        partialSummaries.push(content);
+    const maxChunksToSummarize = 6; // Limit for quicker summaries
+    const chunksToProcess = chunks.slice(0, maxChunksToSummarize);
+
+    for (const [index, chunk] of chunksToProcess.entries()) {
+        const cleanedChunk = chunk.replace(/[^\x20-\x7E]+/g, ''); // Remove non-ASCII
+
+        const prompt = `Summarize this document section in academic research paper style:
+
+${cleanedChunk}
+
+Return a concise summary only.`;
+
+        console.log(`🧩 Processing chunk ${index + 1}/${chunksToProcess.length}...`);
+
+        try {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+
+            if (!response || typeof response.text !== 'function') {
+                throw new Error("Invalid Gemini API response format");
+            }
+
+            const content = response.text();
+            console.log(`✅ Chunk ${index + 1} summary:`, content);
+            partialSummaries.push(content);
+
+        } catch (error) {
+            console.error(`❌ Error in chunk ${index + 1}:`, error.message);
+            partialSummaries.push(`Error summarizing chunk ${index + 1}`);
+        }
+
+        await sleep(5000); // Pause to avoid free-tier limits
     }
 
-    console.log('contentHereeeeeeeeeeeeee', partialSummaries)
+    const combinedSummary = partialSummaries.join("\n\n").slice(0, 25000); // Safe limit
 
     const finalPrompt = `Based on these summarized parts, generate a final structured research in detail with not more than 50000 words covering all the important details with sections:
-  
-  1. Abstract
-  2. Introduction
-  3. Methodology
-  4. Findings
-  5. Conclusion
-  - Key Contributions
-  - Identified Gaps
-  - Relevance of the work
-  
-  Use proper HTML formatting.
-  
-  Here are the parts:
-  
-  ${partialSummaries.join("\n\n")}
-  `;
 
-    console.log('Final Prompt:', finalPrompt);
+1. Abstract
+2. Introduction
+3. Methodology
+4. Findings
+5. Conclusion
+- Key Contributions
+- Identified Gaps
+- Relevance of the work
 
-    const finalResult = await model.generateContent(finalPrompt);
-    console.log('finalResult:', finalResult);
+Use proper HTML formatting.
 
-    const finalResponse = await finalResult.response;
-    console.log('finalResponse:', finalResponse);
+Here are the parts:
 
-    const finalContent = finalResponse.text();
-    console.log('finalContent:', finalContent);
+${combinedSummary}`;
 
-    const cleanedContent = finalContent.replace(/^```html\s*/, '').replace(/```$/, '');
+    try {
+        const finalResult = await model.generateContent(finalPrompt);
+        const finalResponse = await finalResult.response;
+        const finalContent = finalResponse.text();
 
-    console.log('cleanedContent:', cleanedContent);
-
-
-    return cleanedContent;
+        const cleanedContent = finalContent.replace(/^```html\s*/, '').replace(/```$/, '');
+        return cleanedContent;
+    } catch (error) {
+        console.error("❌ Error generating final summary:", error.message);
+        return "Failed to generate final summary.";
+    }
 }
+
 
 // Citation Generator
 router.post('/citations/generate', async (req, res) => {
