@@ -1030,6 +1030,147 @@ router.post('/generate-title', async (req, res) => {
     }
 });
 
+router.post('/check-summarizable', async (req, res) => {
+    try {
+        const { url, abstract, source } = req.body;
+
+        // First check the abstract quality
+        if (!abstract || abstract.length < 150 || abstract.split(/\s+/).length < 30) {
+            return res.json({ canSummarize: false, reason: 'Insufficient abstract' });
+        }
+
+        // Enhanced restricted content patterns
+        const restrictedPatterns = [
+            /full text available at/i,
+            /purchase to view/i,
+            /subscription required/i,
+            /see publisher's site/i,
+            /login to access/i,
+            /access denied/i,
+            /restricted access/i,
+            /members only/i,
+            /pay.?per.?view/i,
+            /purchase article/i
+        ];
+
+        if (restrictedPatterns.some(pattern => pattern.test(abstract))) {
+            return res.json({ canSummarize: false, reason: 'Restricted content' });
+        }
+
+        // Check if it's from a known restricted source
+        const restrictedSources = [
+            'science', 'springer', 'ieee', 'acm',
+            'nature', 'elsevier', 'jstor', 'wiley'
+        ];
+
+        if (source && restrictedSources.some(s => source.toLowerCase().includes(s))) {
+            return res.json({ canSummarize: false, reason: 'Restricted source' });
+        }
+
+        // If we have a URL, do a more thorough check
+        if (url) {
+            try {
+                // First check if it's a PDF URL from a known restricted domain
+                if (url.toLowerCase().endsWith('.pdf')) {
+                    const domain = new URL(url).hostname;
+                    const restrictedPdfDomains = [
+                        'science.sciencemag.org',
+                        'www.science.org',
+                        'link.springer.com',
+                        'ieeexplore.ieee.org'
+                    ];
+
+                    if (restrictedPdfDomains.some(d => domain.includes(d))) {
+                        return res.json({ canSummarize: false, reason: 'Restricted PDF domain' });
+                    }
+
+                    // Try a HEAD request to check accessibility
+                    const headResponse = await axios.head(url, {
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0',
+                            'Accept': 'application/pdf'
+                        },
+                        maxRedirects: 2,
+                        timeout: 5000,
+                        validateStatus: () => true
+                    });
+
+                    // Check for 403/401 responses
+                    if ([401, 403].includes(headResponse.status)) {
+                        return res.json({ canSummarize: false, reason: 'Access forbidden' });
+                    }
+
+                    // Check content type
+                    const contentType = headResponse.headers['content-type'];
+                    if (!contentType || !contentType.includes('application/pdf')) {
+                        return res.json({ canSummarize: false, reason: 'Invalid PDF content type' });
+                    }
+
+                    return res.json({ canSummarize: true });
+                }
+
+                // For HTML pages, check if it's a known restricted domain
+                const restrictedDomains = [
+                    'science.sciencemag.org',
+                    'www.science.org',
+                    'link.springer.com',
+                    'ieeexplore.ieee.org',
+                    'dl.acm.org',
+                    'www.nature.com',
+                    'www.sciencedirect.com',
+                    'www.jstor.org',
+                    'www.tandfonline.com',
+                    'onlinelibrary.wiley.com'
+                ];
+
+                const domain = new URL(url).hostname;
+                if (restrictedDomains.some(d => domain.includes(d))) {
+                    return res.json({ canSummarize: false, reason: 'Restricted domain' });
+                }
+
+                // Do a quick content check
+                const response = await axios.get(url, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0',
+                        'Accept': 'text/html'
+                    },
+                    maxRedirects: 2,
+                    timeout: 5000,
+                    validateStatus: () => true
+                });
+
+                // Check for access restrictions in the HTML
+                const html = response.data;
+                const htmlRestrictedPatterns = [
+                    /<div[^>]*class="[^"]*access-denied/i,
+                    /<div[^>]*class="[^"]*paywall/i,
+                    /id="purchase-access"/i,
+                    /class="[^"]*restricted[^"]*"/i
+                ];
+
+                if (htmlRestrictedPatterns.some(pattern => pattern.test(html))) {
+                    return res.json({ canSummarize: false, reason: 'HTML access restrictions' });
+                }
+
+                return res.json({ canSummarize: true });
+            } catch (error) {
+                console.error('URL check error:', error.message);
+                // If we get a 403, definitely not summarizable
+                if (error.response?.status === 403) {
+                    return res.json({ canSummarize: false, reason: 'Access forbidden' });
+                }
+                return res.json({ canSummarize: false, reason: 'Access check failed' });
+            }
+        }
+
+        // If we only have an abstract, rely on its quality
+        return res.json({ canSummarize: true });
+    } catch (error) {
+        console.error('Error in summarizability check:', error);
+        res.status(500).json({ canSummarize: false, reason: 'Server error' });
+    }
+});
+
 // Helper functions for generating each section
 async function generateAbstract(params) {
     try {

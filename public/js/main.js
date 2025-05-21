@@ -16,6 +16,65 @@ const ERROR_MESSAGES = {
     FILE_UPLOAD: "File upload failed. Please try a different file.",
     API_LIMIT: "Too many requests. Please wait a moment and try again."
 };
+
+// Hardcoded credentials (for demo purposes only)
+const VALID_CREDENTIALS = {
+    username: "admin",
+    password: "research123"
+};
+document.getElementById('logout-btn').addEventListener('click', function () {
+    if (confirm('Are you sure you want to logout?')) {
+        // Clear login state
+        localStorage.removeItem('isLoggedIn');
+
+        // Show login page and hide app
+        document.getElementById('login-page').classList.remove('hidden');
+        document.querySelector('.app-container').classList.add('hidden');
+
+        // Optional: Scroll to top
+        window.scrollTo(0, 0);
+    }
+});
+// Login functionality
+document.addEventListener('DOMContentLoaded', function () {
+    const loginPage = document.getElementById('login-page');
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
+    const appContainer = document.querySelector('.app-container');
+
+    // Hide main app initially
+    appContainer.classList.add('hidden');
+
+    loginForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+
+        // Check credentials
+        if (username === VALID_CREDENTIALS.username && password === VALID_CREDENTIALS.password) {
+            // Successful login
+            loginError.classList.add('hidden');
+            loginPage.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+
+            // Store login state (for page refreshes)
+            localStorage.setItem('isLoggedIn', 'true');
+        } else {
+            // Failed login
+            loginError.textContent = 'Invalid username or password';
+            loginError.classList.remove('hidden');
+        }
+    });
+
+    // Check if already logged in (for page refreshes)
+    if (localStorage.getItem('isLoggedIn') === 'true') {
+        loginPage.classList.add('hidden');
+        appContainer.classList.remove('hidden');
+    }
+});
+
+
 document.addEventListener('DOMContentLoaded', function () {
     // Tab switching functionality
     const tabBtns = document.querySelectorAll('.tab-btn');
@@ -862,7 +921,7 @@ async function searchLiterature() {
     }
 }
 
-function displayLiteratureResults(data) {
+async function displayLiteratureResults(data) {
     const resultsContainer = document.getElementById('literature-results');
     resultsContainer.innerHTML = '';
 
@@ -882,29 +941,21 @@ function displayLiteratureResults(data) {
         return;
     }
 
-    const papersWithAbstracts = data.papers.filter(paper =>
-        paper.abstract && paper.abstract !== 'No abstract available'
-    );
-
-    if (papersWithAbstracts.length === 0) {
-        resultsContainer.innerHTML = `
-            <div class="no-results">
-                <i class="fas fa-book-open"></i>
-                <h3>No papers with abstracts found</h3>
-                <p>Found ${data.papers.length} papers but none had readable abstracts.</p>
-                <button class="btn btn-outline" onclick="searchLiterature()">
-                    <i class="fas fa-sync-alt"></i> Try Again
-                </button>
-            </div>
-        `;
-        return;
-    }
-
     // Clear previous selections
     selectedPapers = [];
     updateSelectedPapersList();
 
-    papersWithAbstracts.forEach(paper => {
+    // Create two sections: summarizable and non-summarizable papers
+    const summarizableSection = document.createElement('div');
+    summarizableSection.className = 'papers-section';
+    summarizableSection.innerHTML = '<h3 class="section-title">Summarizable Papers</h3><div class="papers-list"></div>';
+
+    const nonSummarizableSection = document.createElement('div');
+    nonSummarizableSection.className = 'papers-section';
+    nonSummarizableSection.innerHTML = '<h3 class="section-title">Other Papers (Not Available for Summarization)</h3><div class="papers-list"></div>';
+
+    // Process each paper and add to the appropriate section
+    const processPaper = async (paper) => {
         const paperEl = document.createElement('div');
         paperEl.className = 'paper-result selectable-paper';
         paperEl.dataset.paperId = paper.id;
@@ -921,6 +972,7 @@ function displayLiteratureResults(data) {
 
         const sourceBadge = `<span class="source-badge">${paper.source}</span>`;
 
+        // Add a loading indicator for the summarize button
         paperEl.innerHTML = `
             <div class="paper-header">
                 <h3>${paper.title || 'Untitled'} ${sourceBadge}</h3>
@@ -939,8 +991,8 @@ function displayLiteratureResults(data) {
                 <div class="abstract">${shortenedAbstract}</div>
             </div>
             <div class="actions">
-                <button onclick="summarizePaperById('${paper.id}', '${escapeHtml(paper.title || 'Untitled')}', '${escapeHtml(paper.url || '')}', '${escapeHtml(paper.pdfUrl || '')}')">
-                    <i class="fas fa-file-contract"></i> Summarize
+                <button class="summarize-btn" data-paper-id="${paper.id}" disabled>
+                    <i class="fas fa-spinner fa-spin"></i> Checking...
                 </button>
                 <button onclick="generateCitationForPaper('${paper.id}', '${escapeHtml(paper.title || 'Untitled')}')">
                     <i class="fas fa-quote-right"></i> Citation
@@ -950,18 +1002,202 @@ function displayLiteratureResults(data) {
             </div>
         `;
 
+        // Check if the paper can be summarized
+        const canSummarize = await checkPaperSummarizability(paper);
+        const summarizeBtn = paperEl.querySelector('.summarize-btn');
+
+        if (canSummarize) {
+            summarizeBtn.innerHTML = '<i class="fas fa-file-contract"></i> Summarize';
+            summarizeBtn.onclick = () => summarizePaperById(paper.id, escapeHtml(paper.title || 'Untitled'),
+                escapeHtml(paper.url || ''), escapeHtml(paper.pdfUrl || ''));
+            summarizableSection.querySelector('.papers-list').appendChild(paperEl);
+        } else {
+            summarizeBtn.innerHTML = '<i class="fas fa-ban"></i> Not Available';
+            summarizeBtn.classList.add('disabled');
+            summarizeBtn.title = 'This paper cannot be summarized (restricted or unavailable content)';
+            nonSummarizableSection.querySelector('.papers-list').appendChild(paperEl);
+        }
+        summarizeBtn.disabled = false;
+
         // Add select event listener
         const selectBtn = paperEl.querySelector('.select-paper-btn');
         selectBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             togglePaperSelection(paper, selectBtn);
         });
+    };
 
-        resultsContainer.appendChild(paperEl);
-    });
+    // Process all papers (with abstracts) in parallel
+    const papersWithAbstracts = data.papers.filter(paper =>
+        paper.abstract && paper.abstract !== 'No abstract available'
+    );
+
+    if (papersWithAbstracts.length === 0) {
+        resultsContainer.innerHTML = `
+            <div class="no-results">
+                <i class="fas fa-book-open"></i>
+                <h3>No papers with abstracts found</h3>
+                <p>Found ${data.papers.length} papers but none had readable abstracts.</p>
+                <button class="btn btn-outline" onclick="searchLiterature()">
+                    <i class="fas fa-sync-alt"></i> Try Again
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    // Process papers in parallel
+    await Promise.all(papersWithAbstracts.map(processPaper));
+
+    // Add sections to the container only if they have papers
+    if (summarizableSection.querySelector('.papers-list').children.length > 0) {
+        resultsContainer.appendChild(summarizableSection);
+    }
+
+    if (nonSummarizableSection.querySelector('.papers-list').children.length > 0) {
+        resultsContainer.appendChild(nonSummarizableSection);
+    }
 
     // Show the selected papers container
     document.getElementById('selected-papers-container').classList.remove('hidden');
+}
+
+async function checkPaperSummarizability(paper) {
+    try {
+
+        // Abstract quality check
+        if (!paper.abstract || paper.abstract === 'No abstract available' ||
+            paper.abstract.length < 100 || paper.abstract.split(' ').length < 20) {
+            return false;
+        }
+
+        // Source restriction check
+        const restrictedSources = [
+            'springer', 'ieee', 'acm', 'nature',
+            'science.sciencemag', 'sciencedirect',
+            'jstor', 'tandfonline', 'wiley'
+        ];
+
+        if (paper.source && restrictedSources.some(s =>
+            paper.source.toLowerCase().includes(s.toLowerCase()))) {
+            return false;
+        }
+
+        // URL check
+        const urlToCheck = paper.pdfUrl || paper.url;
+        if (urlToCheck && isRestrictedDomain(urlToCheck)) {
+            return false;
+        }
+
+        // Backend check (inexpensive)
+        if (urlToCheck) {
+            const response = await fetch(window.location.origin + '/api/check-summarizable', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    url: urlToCheck,
+                    abstract: paper.abstract,
+                    source: paper.source
+                })
+            });
+
+            if (!response.ok) {
+                return false;
+            }
+
+            const data = await response.json();
+            if (!data.canSummarize) {
+                return false;
+            }
+
+            // ⏱️ 5s timeout test request (ping only, no summary generation)
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+
+            try {
+                const pingSummary = await fetch(window.location.origin + '/api/summarize-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: urlToCheck, dryRun: true }), // 👈 Add `dryRun` flag on backend
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeout);
+
+                if (pingSummary.status === 403 || pingSummary.status === 500) {
+                    return false;
+                }
+
+                return true;
+
+            } catch (err) {
+                clearTimeout(timeout);
+
+                if (err.name === 'AbortError') {
+                    // Timed out → treat as summarizable
+                    return true;
+                }
+
+                console.error('Ping error:', err);
+                return false;
+            }
+        }
+
+        // Final fallback
+        return isAbstractSummarizable(paper.abstract);
+
+    } catch (error) {
+        console.error('Error checking paper summarizability:', error);
+        return false;
+    }
+}
+
+
+
+function isRestrictedDomain(url) {
+    if (!url) return false;
+
+    const restrictedDomains = [
+        'science.sciencemag.org',
+        'www.science.org',
+        'link.springer.com',
+        'ieeexplore.ieee.org',
+        'dl.acm.org',
+        'www.nature.com',
+        'www.sciencedirect.com',
+        'www.jstor.org',
+        'www.tandfonline.com',
+        'onlinelibrary.wiley.com'
+    ];
+
+    try {
+        const domain = new URL(url).hostname;
+        return restrictedDomains.some(d => domain.includes(d));
+    } catch {
+        return false;
+    }
+}
+
+function isAbstractSummarizable(abstract) {
+    if (!abstract) return false;
+
+    // Check for minimum length
+    if (abstract.length < 150) return false;
+
+    // Check word count
+    const wordCount = abstract.split(/\s+/).length;
+    if (wordCount < 30) return false;
+
+    // Check for common "restricted" patterns
+    const restrictedPatterns = [
+        /full text available at/i,
+        /purchase to view/i,
+        /subscription required/i,
+        /see publisher's site/i,
+        /login to access/i
+    ];
+
+    return !restrictedPatterns.some(pattern => pattern.test(abstract));
 }
 
 // Helper function to escape HTML for use in attributes

@@ -11,6 +11,26 @@
 </head>
 
 <body>
+    <div id="login-page" class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <i class="fas fa-robot"></i>
+                <h1>AI Research Assistant</h1>
+            </div>
+            <form id="login-form" class="login-form">
+                <div class="input-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Enter your username" required>
+                </div>
+                <div class="input-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" class="login-btn">Login</button>
+                <div id="login-error" class="login-error hidden"></div>
+            </form>
+        </div>
+    </div>
     <div id="fullpage-loader" class="hidden">
         <div class="loader-content">
             <div class="loader-spinner">
@@ -84,12 +104,13 @@
                     </button> -->
                 </nav>
                 <div class="sidebar-footer">
-                    <!-- <nav class="tabs">
-                        <button class="tab-btn" id="clear-data-btn">
-                            <i class="fas fa-trash-alt"></i>
-                            <span>Clear All Data</span>
+                    <nav class="tabs">
+                        <button class="tab-btn" id="logout-btn">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Logout</span>
                         </button>
-                    </nav> -->
+                    </nav>
+                </div>
             </aside>
 
             <main class="content-area">
