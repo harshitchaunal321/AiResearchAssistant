@@ -58,3 +58,6 @@ test-output/
 *.swp
 *.tmp
 *.bak
+
+# User uploads
+uploads/

@@ -1,7 +1,10 @@
+// Load environment variables
+require('dotenv').config();
+
 module.exports = {
-    gemini: 'YOUR_GEMINI_API_KEY',
-    togetherAI: 'YOUR_TOGETHERAI_KEY',
-    serpAPI: 'YOUR_SERPAPI_KEY',
-    openAlex: 'YOUR_OPENALEX_API_KEY', // Optional for academic search
-    crossref: 'YOUR_CROSSREF_API_KEY' // Optional for citation data
+    gemini: process.env.GEMINI_API_KEY || '',
+    togetherAI: process.env.TOGETHER_AI_API_KEY || '',
+    serpAPI: process.env.SERP_API_KEY || '',
+    openAlex: process.env.OPENALEX_API_KEY || '', // Optional for academic search
+    crossref: process.env.CROSSREF_API_KEY || '' // Optional for citation data
 };

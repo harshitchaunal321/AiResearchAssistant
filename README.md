@@ -14,18 +14,24 @@ An AI-powered research assistant for Engineering and MBA faculty and students.
 
 1. Clone this repository
 2. Install dependencies: `npm install`
-3. Create a `server/config/apiKeys.js` file with your API keys (see example below)
-4. Start the server: `npm start`
+3. Copy `.env.example` to `.env`: `cp .env.example .env`
+4. Fill in your API keys in the `.env` file
+5. Start the server: `npm start`
 
 ### API Keys Configuration
 
-Create a `server/config/apiKeys.js` file with the following content:
+The application uses environment variables for API keys to keep them secure. 
 
-```javascript
-module.exports = {
-    gemini: 'YOUR_GEMINI_API_KEY',
-    togetherAI: 'YOUR_TOGETHER_AI_API_KEY',
-    serpAPI: 'YOUR_SERP_API_KEY',
-    openAlex: 'YOUR_OPENALEX_API_KEY', // Optional
-    crossref: 'YOUR_CROSSREF_API_KEY' // Optional
-};
+1. Copy the `.env.example` file to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Edit the `.env` file and add your actual API keys:
+   ```
+   GEMINI_API_KEY=your_actual_gemini_key
+   TOGETHER_AI_API_KEY=your_actual_together_ai_key
+   SERP_API_KEY=your_actual_serp_api_key
+   OPENALEX_API_KEY=your_actual_openalex_key  # Optional
+   CROSSREF_API_KEY=your_actual_crossref_key  # Optional
+   ```
