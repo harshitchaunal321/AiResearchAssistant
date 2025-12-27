@@ -19,6 +19,16 @@ app.use(express.static(path.join(__dirname, '../public')));
 const upload = multer({ dest: 'uploads/' });
 
 app.use(express.json());
+
+// Keep-alive endpoint to prevent Render from sleeping
+app.get('/ping', (req, res) => {
+    res.json({
+        status: 'ok',
+        message: 'Server is awake',
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Routes
 const routes = require('./routes');
 app.use('/api', upload.single('file'), routes);
