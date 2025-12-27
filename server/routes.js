@@ -1341,4 +1341,44 @@ async function generateConclusion(params) {
     }
 }
 
+// Demo Credentials Request Endpoint
+router.post('/request-credentials', async (req, res) => {
+    try {
+        const { name, email, company, message } = req.body;
+
+        if (!name || !email) {
+            return res.status(400).json({
+                error: 'Validation error',
+                message: 'Name and email are required'
+            });
+        }
+
+        // Log the request (you can enhance this to send email later)
+        console.log('='.repeat(60));
+        console.log('🔔 NEW DEMO CREDENTIALS REQUEST');
+        console.log('='.repeat(60));
+        console.log(`Name: ${name}`);
+        console.log(`Email: ${email}`);
+        console.log(`Company: ${company || 'Not provided'}`);
+        console.log(`Message: ${message || 'No message'}`);
+        console.log(`Timestamp: ${new Date().toISOString()}`);
+        console.log('='.repeat(60));
+
+        // TODO: Add email sending functionality here
+        // You can use nodemailer or any email service
+        // For now, we'll just log it and return success
+
+        res.json({
+            success: true,
+            message: 'Your request has been received. We will contact you shortly with demo credentials.'
+        });
+    } catch (error) {
+        console.error('Error processing credential request:', error);
+        res.status(500).json({
+            error: 'Server error',
+            message: 'Failed to process your request. Please try again later.'
+        });
+    }
+});
+
 module.exports = router;

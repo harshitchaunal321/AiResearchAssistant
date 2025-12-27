@@ -12,23 +12,147 @@
 
 <body>
     <div id="login-page" class="login-container">
-        <div class="login-card">
-            <div class="login-logo">
-                <i class="fas fa-robot"></i>
-                <h1>AI Research Assistant</h1>
+        <!-- Animated Background Elements -->
+        <div class="login-background">
+            <div class="floating-shapes">
+                <div class="shape shape-1"></div>
+                <div class="shape shape-2"></div>
+                <div class="shape shape-3"></div>
+                <div class="shape shape-4"></div>
+                <div class="shape shape-5"></div>
             </div>
-            <form id="login-form" class="login-form">
-                <div class="input-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" placeholder="Enter your username" required>
+            <div class="gradient-orb orb-1"></div>
+            <div class="gradient-orb orb-2"></div>
+            <div class="gradient-orb orb-3"></div>
+            <div class="gradient-orb orb-4"></div>
+            <div class="gradient-orb orb-5"></div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="login-content-wrapper">
+            <!-- Left Side - Features Showcase -->
+            <div class="login-features">
+                <div class="features-content">
+                    <div class="features-header">
+                        <div class="features-logo">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <h1>AcademiaMind</h1>
+                        <p class="features-subtitle">AI-Powered Research Assistant</p>
+                    </div>
+
+                    <div class="features-list">
+                        <div class="feature-item">
+                            <div class="feature-icon">
+                                <i class="fas fa-search"></i>
+                            </div>
+                            <div class="feature-text">
+                                <h3>Literature Search</h3>
+                                <p>Discover relevant academic papers instantly</p>
+                            </div>
+                        </div>
+
+                        <div class="feature-item">
+                            <div class="feature-icon">
+                                <i class="fas fa-file-alt"></i>
+                            </div>
+                            <div class="feature-text">
+                                <h3>Paper Summarization</h3>
+                                <p>AI-powered summaries of research papers</p>
+                            </div>
+                        </div>
+
+                        <div class="feature-item">
+                            <div class="feature-icon">
+                                <i class="fas fa-quote-right"></i>
+                            </div>
+                            <div class="feature-text">
+                                <h3>Citation Generator</h3>
+                                <p>Generate citations in multiple formats</p>
+                            </div>
+                        </div>
+
+                        <div class="feature-item">
+                            <div class="feature-icon">
+                                <i class="fas fa-clipboard-check"></i>
+                            </div>
+                            <div class="feature-text">
+                                <h3>Plagiarism Check</h3>
+                                <p>Ensure originality before submission</p>
+                            </div>
+                        </div>
+
+                        <div class="feature-item">
+                            <div class="feature-icon">
+                                <i class="fas fa-pen-fancy"></i>
+                            </div>
+                            <div class="feature-text">
+                                <h3>Draft Generator</h3>
+                                <p>Create research drafts with AI assistance</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="features-footer">
+                        <p class="tech-stack">
+                            <span class="tech-badge">Node.js</span>
+                            <span class="tech-badge">Express</span>
+                            <span class="tech-badge">AI/ML</span>
+                            <span class="tech-badge">Modern UI</span>
+                        </p>
+                    </div>
                 </div>
-                <div class="input-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" placeholder="Enter your password" required>
+            </div>
+
+            <!-- Right Side - Login Form -->
+            <div class="login-form-section">
+                <div class="login-card">
+                    <div class="login-header">
+                        <div class="login-logo">
+                            <div class="logo-icon-wrapper">
+                                <i class="fas fa-robot"></i>
+                            </div>
+                            <h2>Welcome Back</h2>
+                            <p>Sign in to access AcademiaMind</p>
+                        </div>
+                    </div>
+
+                    <form id="login-form" class="login-form">
+                        <div class="input-group">
+                            <label for="username">
+                                <i class="fas fa-user"></i>
+                                Username
+                            </label>
+                            <input type="text" id="username" placeholder="Enter your username" required>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="password">
+                                <i class="fas fa-lock"></i>
+                                Password
+                            </label>
+                            <input type="password" id="password" placeholder="Enter your password" required>
+                            <div class="password-toggle" id="password-toggle">
+                                <i class="fas fa-eye"></i>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="login-btn">
+                            <span>Sign In</span>
+                            <i class="fas fa-arrow-right"></i>
+                        </button>
+
+                        <div id="login-error" class="login-error hidden"></div>
+                    </form>
+
+                    <div class="login-footer">
+                        <p class="demo-note">
+                            <i class="fas fa-info-circle"></i>
+                            Demo credentials available upon request
+                        </p>
+                    </div>
                 </div>
-                <button type="submit" class="login-btn">Login</button>
-                <div id="login-error" class="login-error hidden"></div>
-            </form>
+            </div>
         </div>
     </div>
     <div id="fullpage-loader" class="hidden">
